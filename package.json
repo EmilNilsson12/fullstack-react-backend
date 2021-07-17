@@ -5,8 +5,10 @@
 	"main": "index.js",
 	"scripts": {
 		"test": "echo \"Error: no test specified\" && exit 1",
-		"start": "npx nodemon --exec npx babel-node src/server.js"
+		"start": "npx nodemon --exec npx babel-node src/server.js",
+		"dev": "nodemon src/server.js"
 	},
+	"type": "module",
 	"keywords": [],
 	"author": "",
 	"license": "ISC",
