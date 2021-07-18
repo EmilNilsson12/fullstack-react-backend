@@ -6,8 +6,7 @@ const app = express();
 
 app.use(bodyParser.json());
 
-app.get('/api/articles/:name', async (req, res) => {
-	const articleName = req.params.name;
+const withDB = async (operations, res) => {
 	try {
 		const client = await MongoClient.connect(
 			'mongodb://localhost:27017/?readPreference=primary&appname=MongoDB%20Compass&ssl=false',
@@ -17,36 +16,35 @@ app.get('/api/articles/:name', async (req, res) => {
 		);
 		const db = client.db('Fullstack-react');
 
-		const articleInfo = await db
-			.collection('articles')
-			.findOne({ name: articleName });
-
-		if (!articleInfo) throw 'Article does not exist';
-		return res
-			.status(200)
-			.json({ article: articleInfo, msg: 'Sucessfully found article' });
+		await operations(db);
+		client.close();
 	} catch (error) {
 		console.error(error);
 		return res.status(500).json({ error });
 	}
-});
+};
 
-app.post('/api/articles/:name/upvote', async (req, res) => {
-	const articleName = req.params.name;
-
-	try {
-		const client = await MongoClient.connect(
-			'mongodb://localhost:27017/?readPreference=primary&appname=MongoDB%20Compass&ssl=false',
-			{
-				useNewUrlParser: true,
-			}
-		);
-		const db = client.db('Fullstack-react');
-
-		// Find before update
+app.get('/api/articles/:name', (req, res) => {
+	withDB(async (db) => {
+		const articleName = req.params.name;
 		const articleInfo = await db
 			.collection('articles')
 			.findOne({ name: articleName });
+		if (!articleInfo) throw 'Article does not exist';
+
+		return res.status(200).json(articleInfo);
+	}, res);
+});
+
+app.post('/api/articles/:name/upvote', (req, res) => {
+	withDB(async (db) => {
+		const articleName = req.params.name;
+
+		// Find
+		const articleInfo = await db
+			.collection('articles')
+			.findOne({ name: articleName });
+
 		if (!articleInfo) throw 'Article does not exist';
 
 		// Update
@@ -63,18 +61,35 @@ app.post('/api/articles/:name/upvote', async (req, res) => {
 			.findOne({ name: articleName });
 
 		return res.status(200).json(updatedArticleInfo);
-	} catch (error) {
-		console.log(error);
-		return res.status(500).json({ error });
-	}
+	}, res);
 });
 
 app.post('/api/articles/:name/add-comment', (req, res) => {
-	const articleName = req.params.name;
+	withDB(async (db) => {
+		const articleName = req.params.name;
 
-	articlesInfo[articleName].comments.push(req.body);
+		// Find
+		const articleInfo = await db
+			.collection('articles')
+			.findOne({ name: articleName });
 
-	return res.status(200).send(articlesInfo[articleName]);
+		if (!articleInfo) throw 'Article does not exist';
+
+		// Update
+		await db
+			.collection('articles')
+			.updateOne(
+				{ name: articleName },
+				{ $set: { comments: articleInfo.comments.concat(req.body) } }
+			);
+
+		// Find after update
+		const updatedArticleInfo = await db
+			.collection('articles')
+			.findOne({ name: articleName });
+
+		return res.status(200).send(updatedArticleInfo);
+	}, res);
 });
 
 app.get('/hello', (req, res) => {
