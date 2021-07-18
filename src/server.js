@@ -46,16 +46,42 @@ app.get('/api/articles/:name', async (req, res) => {
 	}
 });
 
-app.post('/api/articles/:name/upvote', (req, res) => {
+app.post('/api/articles/:name/upvote', async (req, res) => {
 	const articleName = req.params.name;
 
-	articlesInfo[articleName].upvotes += 1;
-
-	return res
-		.status(200)
-		.send(
-			`${articleName} now has ${articlesInfo[articleName].upvotes} upvotes!`
+	try {
+		const client = await MongoClient.connect(
+			'mongodb://localhost:27017/?readPreference=primary&appname=MongoDB%20Compass&ssl=false',
+			{
+				useNewUrlParser: true,
+			}
 		);
+		const db = client.db('Fullstack-react');
+
+		// Find before update
+		const articleInfo = await db
+			.collection('articles')
+			.findOne({ name: articleName });
+		if (!articleInfo) throw 'Article does not exist';
+
+		// Update
+		await db
+			.collection('articles')
+			.updateOne(
+				{ name: articleName },
+				{ $set: { upvotes: articleInfo.upvotes + 1 } }
+			);
+
+		// Find after update
+		const updatedArticleInfo = await db
+			.collection('articles')
+			.findOne({ name: articleName });
+
+		return res.status(200).json(updatedArticleInfo);
+	} catch (error) {
+		console.log(error);
+		return res.status(500).json({ error });
+	}
 });
 
 app.post('/api/articles/:name/add-comment', (req, res) => {
