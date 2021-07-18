@@ -4,6 +4,9 @@ import { MongoClient } from 'mongodb';
 
 const app = express();
 
+import cors from 'cors';
+app.use(cors());
+
 app.use(bodyParser.json());
 
 const withDB = async (operations, res) => {
