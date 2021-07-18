@@ -1,5 +1,6 @@
 import express from 'express';
 import bodyParser from 'body-parser';
+import { MongoClient } from 'mongodb';
 
 const articlesInfo = {
 	'learn-react': {
@@ -19,6 +20,31 @@ const articlesInfo = {
 const app = express();
 
 app.use(bodyParser.json());
+
+app.get('/api/articles/:name', async (req, res) => {
+	const articleName = req.params.name;
+	try {
+		const client = await MongoClient.connect(
+			'mongodb://localhost:27017/?readPreference=primary&appname=MongoDB%20Compass&ssl=false',
+			{
+				useNewUrlParser: true,
+			}
+		);
+		const db = client.db('Fullstack-react');
+
+		const articleInfo = await db
+			.collection('articles')
+			.findOne({ name: articleName });
+
+		if (!articleInfo) throw 'Article does not exist';
+		return res
+			.status(200)
+			.json({ article: articleInfo, msg: 'Sucessfully found article' });
+	} catch (error) {
+		console.error(error);
+		return res.status(500).json({ error });
+	}
+});
 
 app.post('/api/articles/:name/upvote', (req, res) => {
 	const articleName = req.params.name;
